@@ -68,68 +68,51 @@ class APIClient:
         user_input = self._build_user_input(system_prompt, user_prompt, frame_context)
 
         try:
-            # Use standard Chat Completions API for all models
-            return self._call_chat_completion(user_input, api_settings, start_time)
+            if model_name.startswith('gpt-5'):
+                # Use GPT-5 Responses API with tools
+                return self._call_gpt5_responses_api(user_input, api_settings, start_time)
+            else:
+                # Use Chat Completions API for other models
+                return self._call_chat_completion(user_input, api_settings, start_time)
 
         except Exception as error:
             logger.error(f"API call failed: {error}")
             raise error
 
-    def _call_gpt5_with_tools(
+    def _call_gpt5_responses_api(
         self,
         user_input: str,
         settings: Dict[str, Any],
         start_time: float
     ) -> Dict[str, Any]:
-        """Call GPT-5 using standard Chat Completions API."""
+        """Call GPT-5 using the Responses API."""
 
-        # Define web search tool for research (simulated)
-        tools = [
-            {
-                "type": "function",
-                "function": {
-                    "name": "web_search",
-                    "description": "Search the web for current information about applications, features, shortcuts, and productivity techniques. Use this to validate and enhance recommendations with authoritative sources.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "query": {
-                                "type": "string",
-                                "description": "Search query for productivity techniques, application features, or shortcuts"
-                            },
-                            "focus": {
-                                "type": "string",
-                                "enum": ["official_docs", "community_tips", "shortcuts", "automation", "best_practices"],
-                                "description": "Focus area for the search"
-                            }
-                        },
-                        "required": ["query"]
-                    }
-                }
-            }
-        ]
-
-        # Use standard Chat Completions format
+        # Prepare GPT-5 Responses API payload
         payload = {
-            "model": settings.get('model_name', 'gpt-4'),  # Use gpt-4 for now
-            "messages": [
-                {
-                    "role": "user",
-                    "content": user_input
-                }
-            ],
-            "tools": tools,
-            "tool_choice": "auto"
+            "model": settings.get('model_name', 'gpt-5'),
+            "input": user_input
         }
 
-        # Add standard settings
-        if settings.get('max_tokens'):
-            payload['max_tokens'] = settings['max_tokens']
-        if settings.get('temperature') is not None:
-            payload['temperature'] = settings['temperature']
+        # Add reasoning settings for GPT-5
+        reasoning_effort = settings.get('reasoning_effort', 'medium')
+        valid_efforts = ['minimal', 'low', 'medium', 'high']
+        if reasoning_effort not in valid_efforts:
+            reasoning_effort = 'medium'
 
-        response = self._make_api_call_with_retry(payload, use_tools=True)
-        return self._parse_chat_response(response, start_time, settings)
+        payload['reasoning'] = {'effort': reasoning_effort}
+
+        # Add text generation settings
+        verbosity = settings.get('verbosity', 'medium')
+        payload['text'] = {'verbosity': verbosity}
+
+        # Add max tokens if specified
+        if settings.get('max_tokens'):
+            payload['max_output_tokens'] = settings['max_tokens']
+
+        # Temperature is not supported in Responses API, so we skip it
+
+        response = self._make_api_call_with_retry(payload, use_responses_api=True)
+        return self._parse_gpt5_response(response, start_time, settings)
 
     def _call_chat_completion(
         self,
@@ -160,18 +143,41 @@ class APIClient:
     def _make_api_call_with_retry(
         self,
         payload: Dict[str, Any],
-        use_tools: bool = False
+        use_tools: bool = False,
+        use_responses_api: bool = False
     ) -> Dict[str, Any]:
         """Make API call with retry logic."""
+        import requests
 
         attempt = 1
         while attempt <= self.max_retries:
             try:
                 logger.info(f"API call attempt {attempt} (model: {payload.get('model', 'unknown')})")
 
-                response = self.client.chat.completions.create(**payload)
+                if use_responses_api:
+                    # Use the raw requests library for GPT-5 Responses API
+                    headers = {
+                        'Authorization': f'Bearer {self.api_key}',
+                        'Content-Type': 'application/json'
+                    }
 
-                return response.model_dump()
+                    response = requests.post(
+                        'https://api.openai.com/v1/responses',
+                        headers=headers,
+                        json=payload,
+                        timeout=self.timeout
+                    )
+
+                    if response.status_code == 200:
+                        return response.json()
+                    else:
+                        error_text = response.text
+                        logger.error(f"GPT-5 Responses API error: HTTP {response.status_code}: {error_text}")
+                        raise Exception(f"HTTP {response.status_code}: {error_text}")
+                else:
+                    # Use OpenAI client for Chat Completions
+                    response = self.client.chat.completions.create(**payload)
+                    return response.model_dump()
 
             except Exception as error:
                 if attempt < self.max_retries:

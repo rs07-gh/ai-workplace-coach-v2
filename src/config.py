@@ -40,7 +40,7 @@ class Config:
 
     # API Configuration
     OPENAI_API_KEY: str = get_streamlit_secret('OPENAI_API_KEY', '')
-    DEFAULT_MODEL: str = get_streamlit_secret('DEFAULT_MODEL', 'gpt-4')
+    DEFAULT_MODEL: str = get_streamlit_secret('DEFAULT_MODEL', 'gpt-5')
     REASONING_EFFORT: str = get_streamlit_secret('REASONING_EFFORT', 'medium')
     VERBOSITY: str = get_streamlit_secret('VERBOSITY', 'medium')
     MAX_TOKENS: int = int(get_streamlit_secret('MAX_TOKENS', '4000'))
