@@ -44,7 +44,7 @@ class Config:
     REASONING_EFFORT: str = get_streamlit_secret('REASONING_EFFORT', 'medium')
     VERBOSITY: str = get_streamlit_secret('VERBOSITY', 'medium')
     MAX_TOKENS: int = int(get_streamlit_secret('MAX_TOKENS', '4000'))
-    TEMPERATURE: float = float(get_streamlit_secret('TEMPERATURE', '0.1'))
+    # Note: GPT-5 does not support temperature parameter
 
     # Processing Settings
     DEFAULT_INTERVAL_MINUTES: float = float(get_streamlit_secret('DEFAULT_INTERVAL_MINUTES', '2'))
@@ -81,7 +81,7 @@ class Config:
             'reasoning_effort': cls.REASONING_EFFORT,
             'verbosity': cls.VERBOSITY,
             'max_tokens': cls.MAX_TOKENS,
-            'temperature': cls.TEMPERATURE,
+            # Note: temperature removed - not supported by GPT-5
         }
 
     @classmethod
@@ -101,7 +101,7 @@ class Config:
             'reasoning_effort': cls.REASONING_EFFORT,
             'verbosity': cls.VERBOSITY,
             'max_tokens': cls.MAX_TOKENS,
-            'temperature': cls.TEMPERATURE,
+            # Note: temperature removed - not supported by GPT-5
             'default_interval_minutes': cls.DEFAULT_INTERVAL_MINUTES,
             'max_context_windows': cls.MAX_CONTEXT_WINDOWS,
             'retry_attempts': cls.RETRY_ATTEMPTS,

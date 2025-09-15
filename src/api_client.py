@@ -85,39 +85,40 @@ class APIClient:
         settings: Dict[str, Any],
         start_time: float
     ) -> Dict[str, Any]:
-        """Call GPT-5 using the Chat Completions API with GPT-5 specific parameters."""
+        """Call GPT-5 using the Responses API with proper format and parameters."""
 
-        # GPT-5 uses standard Chat Completions API with special parameters
+        # GPT-5 uses Responses API with specific format
         payload = {
             "model": settings.get('model_name', 'gpt-5'),
-            "messages": [
-                {
-                    "role": "user",
-                    "content": user_input
-                }
-            ]
+            "input": user_input  # String input, not messages array
         }
 
-        # Add GPT-5 specific parameters
+        # Add GPT-5 specific parameters with proper nesting
         reasoning_effort = settings.get('reasoning_effort', 'medium')
         valid_efforts = ['minimal', 'low', 'medium', 'high']
         if reasoning_effort not in valid_efforts:
             reasoning_effort = 'medium'
 
-        # GPT-5 specific parameters
-        payload['reasoning_effort'] = reasoning_effort
+        # Properly nested GPT-5 parameters
+        payload['reasoning'] = {'effort': reasoning_effort}
 
-        # Add verbosity for GPT-5
+        # Add verbosity parameter with proper nesting
         verbosity = settings.get('verbosity', 'medium')
-        payload['verbosity'] = verbosity
+        payload['text'] = {'verbosity': verbosity}
 
-        # Add standard parameters (GPT-5 uses max_completion_tokens)
+        # Add web search tools for parallel workflow support
+        payload['tools'] = self._get_web_search_tools()
+
+        # Enable parallel tool calls as required by system prompt
+        payload['parallel_tool_calls'] = True
+
+        # Add max tokens with correct GPT-5 parameter name
         if settings.get('max_tokens'):
-            payload['max_completion_tokens'] = settings['max_tokens']
-        if settings.get('temperature') is not None:
-            payload['temperature'] = settings['temperature']
+            payload['max_output_tokens'] = settings['max_tokens']
 
-        response = self._make_api_call_with_retry(payload, use_responses_api=False)
+        # Note: temperature is NOT supported by GPT-5 - removed
+
+        response = self._make_api_call_with_retry(payload, use_responses_api=True)
         return self._parse_gpt5_response(response, start_time, settings)
 
     def _call_chat_completion(
@@ -140,8 +141,7 @@ class APIClient:
 
         if settings.get('max_tokens'):
             payload['max_tokens'] = settings['max_tokens']
-        if settings.get('temperature') is not None:
-            payload['temperature'] = settings['temperature']
+        # Note: temperature parameter removed - not consistent across all models
 
         response = self._make_api_call_with_retry(payload, use_tools=False)
         return self._parse_chat_response(response, start_time, settings)
@@ -159,9 +159,14 @@ class APIClient:
             try:
                 logger.info(f"API call attempt {attempt} (model: {payload.get('model', 'unknown')})")
 
-                # Use OpenAI client for all API calls (Chat Completions)
-                response = self.client.chat.completions.create(**payload)
-                return response.model_dump()
+                if use_responses_api:
+                    # Use GPT-5 Responses API
+                    response = self.client.responses.create(**payload)
+                    return response.model_dump()
+                else:
+                    # Use Chat Completions API for non-GPT-5 models
+                    response = self.client.chat.completions.create(**payload)
+                    return response.model_dump()
 
             except Exception as error:
                 if attempt < self.max_retries:
@@ -337,6 +342,35 @@ Please analyze this context and provide specific, actionable productivity recomm
             return 0.5
 
         return 0.75  # Default confidence
+
+    def _get_web_search_tools(self) -> List[Dict[str, Any]]:
+        """Get web search tool definitions for GPT-5."""
+
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": "web_search",
+                    "description": "Search the web for current information about applications, tools, shortcuts, best practices, and optimization techniques. Use this proactively to validate and enhance recommendations.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "The search query. Be specific about the application/tool and what you're looking for (e.g., 'Excel keyboard shortcuts 2024', 'Chrome DevTools productivity tips')"
+                            },
+                            "focus": {
+                                "type": "string",
+                                "enum": ["general", "documentation", "tutorials", "shortcuts", "best_practices", "community_tips"],
+                                "description": "What type of information to focus on",
+                                "default": "general"
+                            }
+                        },
+                        "required": ["query"]
+                    }
+                }
+            }
+        ]
 
     def test_connection(self, test_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Test API connectivity and configuration."""
