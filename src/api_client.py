@@ -106,11 +106,8 @@ class APIClient:
         verbosity = settings.get('verbosity', 'medium')
         payload['text'] = {'verbosity': verbosity}
 
-        # Add web search tools for parallel workflow support
-        payload['tools'] = self._get_web_search_tools()
-
-        # Enable parallel tool calls as required by system prompt
-        payload['parallel_tool_calls'] = True
+        # Note: Tools temporarily disabled to get basic GPT-5 working
+        # TODO: Add web search tools once basic API is confirmed working
 
         # Add max tokens with correct GPT-5 parameter name
         if settings.get('max_tokens'):
@@ -344,30 +341,16 @@ Please analyze this context and provide specific, actionable productivity recomm
         return 0.75  # Default confidence
 
     def _get_web_search_tools(self) -> List[Dict[str, Any]]:
-        """Get web search tool definitions for GPT-5."""
+        """Get web search tool definitions for GPT-5 Responses API."""
 
         return [
             {
-                "type": "function",
-                "function": {
-                    "name": "web_search",
-                    "description": "Search the web for current information about applications, tools, shortcuts, best practices, and optimization techniques. Use this proactively to validate and enhance recommendations.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "query": {
-                                "type": "string",
-                                "description": "The search query. Be specific about the application/tool and what you're looking for (e.g., 'Excel keyboard shortcuts 2024', 'Chrome DevTools productivity tips')"
-                            },
-                            "focus": {
-                                "type": "string",
-                                "enum": ["general", "documentation", "tutorials", "shortcuts", "best_practices", "community_tips"],
-                                "description": "What type of information to focus on",
-                                "default": "general"
-                            }
-                        },
-                        "required": ["query"]
-                    }
+                "type": "custom",
+                "name": "web_search",
+                "description": "Search the web for current information about applications, tools, shortcuts, best practices, and optimization techniques. Use this proactively to validate and enhance recommendations.",
+                "format": {
+                    "type": "text",
+                    "syntax": "Query: [search query] | Focus: [general|documentation|tutorials|shortcuts|best_practices|community_tips]"
                 }
             }
         ]
