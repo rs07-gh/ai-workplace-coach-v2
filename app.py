@@ -149,14 +149,8 @@ def main():
             help="Maximum tokens per API call"
         )
 
-        temperature = st.slider(
-            "Temperature",
-            min_value=0.0,
-            max_value=2.0,
-            value=0.1,
-            step=0.1,
-            help="Response randomness (0=focused, 2=creative)"
-        )
+        # Note: Temperature parameter removed - not supported by GPT-5
+        st.info("💡 GPT-5 uses default temperature (no customization available)")
 
     # Main content area
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Analysis", "📝 Templates", "📈 Results", "🔧 System Test"])
@@ -253,7 +247,7 @@ def main():
                         'model_name': model_name,
                         'reasoning_effort': reasoning_effort,
                         'max_tokens': max_tokens,
-                        'temperature': temperature
+                        # Note: temperature removed - not supported by GPT-5
                     }
 
                     # Initialize engine with progress callback
