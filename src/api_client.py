@@ -182,14 +182,18 @@ class APIClient:
         start_time: float,
         settings: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Parse GPT-5 response with tool calls."""
+        """Parse GPT-5 Responses API response."""
 
         processing_time = int((time.time() - start_time) * 1000)
 
-        # Extract message content
-        message = response.get('choices', [{}])[0].get('message', {})
-        content = message.get('content', '') or ''
-        tool_calls = message.get('tool_calls', [])
+        # GPT-5 Responses API has different structure than Chat Completions
+        # Extract content directly from response
+        content = response.get('content', '') or ''
+        if isinstance(content, dict):
+            # Handle case where content is a dict object
+            content = str(content)
+
+        tool_calls = response.get('tool_calls', [])
 
         # Handle tool calls (web searches)
         search_results = []
@@ -209,8 +213,11 @@ class APIClient:
         usage = response.get('usage', {})
         tokens_used = usage.get('total_tokens', 0)
 
-        # Extract reasoning if available
+        # Extract reasoning if available (GPT-5 Responses API format)
         reasoning = response.get('reasoning', '') or ''
+        if isinstance(reasoning, dict):
+            # If reasoning is a dict, extract the text content
+            reasoning = reasoning.get('content', '') or str(reasoning)
 
         # Parse recommendations
         recommendations = self._extract_recommendations(content)
@@ -318,6 +325,12 @@ Please analyze this context and provide specific, actionable productivity recomm
 
         if not text:
             return 0.8
+
+        # Ensure text is a string
+        if isinstance(text, dict):
+            text = str(text)
+        elif not isinstance(text, str):
+            text = str(text)
 
         import re
 
