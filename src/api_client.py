@@ -111,9 +111,9 @@ class APIClient:
         verbosity = settings.get('verbosity', 'medium')
         payload['verbosity'] = verbosity
 
-        # Add standard parameters
+        # Add standard parameters (GPT-5 uses max_completion_tokens)
         if settings.get('max_tokens'):
-            payload['max_tokens'] = settings['max_tokens']
+            payload['max_completion_tokens'] = settings['max_tokens']
         if settings.get('temperature') is not None:
             payload['temperature'] = settings['temperature']
 
