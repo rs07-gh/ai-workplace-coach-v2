@@ -21,10 +21,19 @@ def get_streamlit_secret(key: str, default: str = '') -> str:
     try:
         import streamlit as st
         if hasattr(st, 'secrets') and key in st.secrets:
-            return st.secrets[key]
+            return str(st.secrets[key])
     except (ImportError, Exception):
         pass
     return os.getenv(key, default)
+
+def get_boolean_setting(key: str, default: bool = True) -> bool:
+    """Get boolean setting from environment or Streamlit secrets."""
+    value = get_streamlit_secret(key, str(default).lower())
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() == 'true'
+    return default
 
 class Config:
     """Configuration settings for the coaching framework."""
@@ -46,12 +55,12 @@ class Config:
     # Output Settings
     OUTPUT_DIR: str = get_streamlit_secret('OUTPUT_DIR', 'outputs')
     LOGS_DIR: str = get_streamlit_secret('LOGS_DIR', 'logs')
-    ENABLE_LOGGING: bool = get_streamlit_secret('ENABLE_LOGGING', 'true').lower() == 'true'
-    AUTO_SUMMARY: bool = get_streamlit_secret('AUTO_SUMMARY', 'true').lower() == 'true'
+    ENABLE_LOGGING: bool = get_boolean_setting('ENABLE_LOGGING', True)
+    AUTO_SUMMARY: bool = get_boolean_setting('AUTO_SUMMARY', True)
 
     # Streamlit Settings
     STREAMLIT_PORT: int = int(get_streamlit_secret('STREAMLIT_PORT', '8501'))
-    DEBUG_MODE: bool = get_streamlit_secret('DEBUG_MODE', 'false').lower() == 'true'
+    DEBUG_MODE: bool = get_boolean_setting('DEBUG_MODE', False)
 
     @classmethod
     def ensure_directories(cls) -> None:
