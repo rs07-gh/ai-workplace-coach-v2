@@ -85,33 +85,39 @@ class APIClient:
         settings: Dict[str, Any],
         start_time: float
     ) -> Dict[str, Any]:
-        """Call GPT-5 using the Responses API."""
+        """Call GPT-5 using the Chat Completions API with GPT-5 specific parameters."""
 
-        # Prepare GPT-5 Responses API payload
+        # GPT-5 uses standard Chat Completions API with special parameters
         payload = {
             "model": settings.get('model_name', 'gpt-5'),
-            "input": user_input
+            "messages": [
+                {
+                    "role": "user",
+                    "content": user_input
+                }
+            ]
         }
 
-        # Add reasoning settings for GPT-5
+        # Add GPT-5 specific parameters
         reasoning_effort = settings.get('reasoning_effort', 'medium')
         valid_efforts = ['minimal', 'low', 'medium', 'high']
         if reasoning_effort not in valid_efforts:
             reasoning_effort = 'medium'
 
-        payload['reasoning'] = {'effort': reasoning_effort}
+        # GPT-5 specific parameters
+        payload['reasoning_effort'] = reasoning_effort
 
-        # Add text generation settings
+        # Add verbosity for GPT-5
         verbosity = settings.get('verbosity', 'medium')
-        payload['text'] = {'verbosity': verbosity}
+        payload['verbosity'] = verbosity
 
-        # Add max tokens if specified
+        # Add standard parameters
         if settings.get('max_tokens'):
-            payload['max_output_tokens'] = settings['max_tokens']
+            payload['max_tokens'] = settings['max_tokens']
+        if settings.get('temperature') is not None:
+            payload['temperature'] = settings['temperature']
 
-        # Temperature is not supported in Responses API, so we skip it
-
-        response = self._make_api_call_with_retry(payload, use_responses_api=True)
+        response = self._make_api_call_with_retry(payload, use_responses_api=False)
         return self._parse_gpt5_response(response, start_time, settings)
 
     def _call_chat_completion(
@@ -147,37 +153,15 @@ class APIClient:
         use_responses_api: bool = False
     ) -> Dict[str, Any]:
         """Make API call with retry logic."""
-        import requests
 
         attempt = 1
         while attempt <= self.max_retries:
             try:
                 logger.info(f"API call attempt {attempt} (model: {payload.get('model', 'unknown')})")
 
-                if use_responses_api:
-                    # Use the raw requests library for GPT-5 Responses API
-                    headers = {
-                        'Authorization': f'Bearer {self.api_key}',
-                        'Content-Type': 'application/json'
-                    }
-
-                    response = requests.post(
-                        'https://api.openai.com/v1/responses',
-                        headers=headers,
-                        json=payload,
-                        timeout=self.timeout
-                    )
-
-                    if response.status_code == 200:
-                        return response.json()
-                    else:
-                        error_text = response.text
-                        logger.error(f"GPT-5 Responses API error: HTTP {response.status_code}: {error_text}")
-                        raise Exception(f"HTTP {response.status_code}: {error_text}")
-                else:
-                    # Use OpenAI client for Chat Completions
-                    response = self.client.chat.completions.create(**payload)
-                    return response.model_dump()
+                # Use OpenAI client for all API calls (Chat Completions)
+                response = self.client.chat.completions.create(**payload)
+                return response.model_dump()
 
             except Exception as error:
                 if attempt < self.max_retries:
