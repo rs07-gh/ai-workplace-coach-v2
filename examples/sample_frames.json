@@ -1,0 +1,235 @@
+{
+  "frames": [
+    {
+      "timestamp": 0.5,
+      "description": "User opening Chrome browser, clicking on the Chrome icon in the dock",
+      "application": "Chrome",
+      "confidence": 0.95
+    },
+    {
+      "timestamp": 2.8,
+      "description": "Typing 'gmail.com' in the address bar, using keyboard input",
+      "application": "Chrome",
+      "confidence": 0.98
+    },
+    {
+      "timestamp": 4.2,
+      "description": "Pressing Enter to navigate to Gmail, page is loading",
+      "application": "Chrome",
+      "confidence": 0.97
+    },
+    {
+      "timestamp": 7.1,
+      "description": "Gmail login page appears, user clicking on email input field",
+      "application": "Chrome",
+      "window_title": "Gmail - Sign In",
+      "confidence": 0.96
+    },
+    {
+      "timestamp": 9.5,
+      "description": "Typing email address 'user@company.com' in the login field",
+      "application": "Chrome",
+      "confidence": 0.94
+    },
+    {
+      "timestamp": 12.3,
+      "description": "Clicking 'Next' button to proceed to password entry",
+      "application": "Chrome",
+      "confidence": 0.93
+    },
+    {
+      "timestamp": 14.7,
+      "description": "Typing password in the password field (characters hidden)",
+      "application": "Chrome",
+      "confidence": 0.91
+    },
+    {
+      "timestamp": 17.2,
+      "description": "Clicking 'Sign In' button to complete authentication",
+      "application": "Chrome",
+      "confidence": 0.95
+    },
+    {
+      "timestamp": 20.8,
+      "description": "Gmail inbox loads, showing 23 unread emails in the inbox",
+      "application": "Chrome",
+      "window_title": "Gmail - Inbox",
+      "confidence": 0.97
+    },
+    {
+      "timestamp": 23.4,
+      "description": "Scrolling down through email list, scanning subject lines",
+      "application": "Chrome",
+      "confidence": 0.89
+    },
+    {
+      "timestamp": 26.1,
+      "description": "Clicking on first email from 'Sarah Johnson' about 'Project Update'",
+      "application": "Chrome",
+      "confidence": 0.96
+    },
+    {
+      "timestamp": 29.7,
+      "description": "Reading the email content, scrolling down to see full message",
+      "application": "Chrome",
+      "confidence": 0.88
+    },
+    {
+      "timestamp": 35.2,
+      "description": "Clicking 'Reply' button at the bottom of the email",
+      "application": "Chrome",
+      "confidence": 0.94
+    },
+    {
+      "timestamp": 38.6,
+      "description": "Typing reply message: 'Thanks for the update. When is the deadline?'",
+      "application": "Chrome",
+      "confidence": 0.92
+    },
+    {
+      "timestamp": 45.3,
+      "description": "Clicking 'Send' button to send the reply",
+      "application": "Chrome",
+      "confidence": 0.96
+    },
+    {
+      "timestamp": 47.9,
+      "description": "Navigating back to inbox by clicking 'Inbox' in left sidebar",
+      "application": "Chrome",
+      "confidence": 0.93
+    },
+    {
+      "timestamp": 51.2,
+      "description": "Opening second email from 'Michael Chen' about 'Meeting Reschedule'",
+      "application": "Chrome",
+      "confidence": 0.95
+    },
+    {
+      "timestamp": 54.8,
+      "description": "Reading the meeting reschedule request, checking proposed times",
+      "application": "Chrome",
+      "confidence": 0.87
+    },
+    {
+      "timestamp": 60.3,
+      "description": "Switching to new tab by pressing Cmd+T to open calendar",
+      "application": "Chrome",
+      "confidence": 0.91
+    },
+    {
+      "timestamp": 62.7,
+      "description": "Typing 'calendar.google.com' to check availability",
+      "application": "Chrome",
+      "confidence": 0.94
+    },
+    {
+      "timestamp": 65.4,
+      "description": "Google Calendar loads, showing current week view",
+      "application": "Chrome",
+      "window_title": "Google Calendar",
+      "confidence": 0.97
+    },
+    {
+      "timestamp": 68.9,
+      "description": "Clicking on Thursday 2 PM slot to check if it's available",
+      "application": "Chrome",
+      "confidence": 0.89
+    },
+    {
+      "timestamp": 72.1,
+      "description": "Confirming the slot is free, switching back to Gmail tab",
+      "application": "Chrome",
+      "confidence": 0.92
+    },
+    {
+      "timestamp": 74.8,
+      "description": "Clicking reply on Michael's email to confirm new meeting time",
+      "application": "Chrome",
+      "confidence": 0.94
+    },
+    {
+      "timestamp": 78.3,
+      "description": "Typing reply: 'Thursday 2 PM works for me. I'll update my calendar.'",
+      "application": "Chrome",
+      "confidence": 0.93
+    },
+    {
+      "timestamp": 85.7,
+      "description": "Sending the reply and returning to inbox view",
+      "application": "Chrome",
+      "confidence": 0.95
+    },
+    {
+      "timestamp": 89.2,
+      "description": "Clicking on third email from 'IT Support' about 'System Maintenance'",
+      "application": "Chrome",
+      "confidence": 0.96
+    },
+    {
+      "timestamp": 92.8,
+      "description": "Reading maintenance notification, noting it's scheduled for this weekend",
+      "application": "Chrome",
+      "confidence": 0.88
+    },
+    {
+      "timestamp": 98.4,
+      "description": "Clicking 'Archive' button to move the informational email out of inbox",
+      "application": "Chrome",
+      "confidence": 0.92
+    },
+    {
+      "timestamp": 101.6,
+      "description": "Scrolling down to see more emails in the inbox",
+      "application": "Chrome",
+      "confidence": 0.86
+    },
+    {
+      "timestamp": 105.3,
+      "description": "Clicking on compose button to start a new email",
+      "application": "Chrome",
+      "confidence": 0.94
+    },
+    {
+      "timestamp": 108.7,
+      "description": "Typing recipient email 'team@company.com' in the To field",
+      "application": "Chrome",
+      "confidence": 0.91
+    },
+    {
+      "timestamp": 112.4,
+      "description": "Typing subject line 'Weekly Team Standup - Agenda Items'",
+      "application": "Chrome",
+      "confidence": 0.93
+    },
+    {
+      "timestamp": 118.9,
+      "description": "Typing email body with agenda items and meeting details",
+      "application": "Chrome",
+      "confidence": 0.89
+    },
+    {
+      "timestamp": 145.2,
+      "description": "Reviewing the composed email, checking for typos and completeness",
+      "application": "Chrome",
+      "confidence": 0.85
+    },
+    {
+      "timestamp": 149.8,
+      "description": "Clicking 'Send' button to send the team agenda email",
+      "application": "Chrome",
+      "confidence": 0.96
+    },
+    {
+      "timestamp": 152.3,
+      "description": "Email sent successfully, confirmation message appears",
+      "application": "Chrome",
+      "confidence": 0.94
+    },
+    {
+      "timestamp": 155.7,
+      "description": "Closing Gmail tab and Chrome browser window",
+      "application": "Chrome",
+      "confidence": 0.93
+    }
+  ]
+}

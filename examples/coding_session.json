@@ -1,0 +1,159 @@
+{
+  "windows": [
+    {
+      "window_id": 1,
+      "start_time": 0,
+      "end_time": 120,
+      "frames": [
+        {
+          "timestamp": 0.5,
+          "description": "Opening VS Code by clicking on the dock icon",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 3.2,
+          "description": "VS Code launches with welcome screen, showing recent projects",
+          "application": "VS Code",
+          "window_title": "Visual Studio Code"
+        },
+        {
+          "timestamp": 6.8,
+          "description": "Clicking on 'Open Folder' button to open project directory",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 9.4,
+          "description": "File dialog opens, navigating to ~/projects/web-app directory",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 12.7,
+          "description": "Selecting project folder and clicking 'Open' to load project",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 16.3,
+          "description": "Project loads with file explorer showing on left, main.js file visible",
+          "application": "VS Code",
+          "window_title": "web-app - Visual Studio Code"
+        },
+        {
+          "timestamp": 19.8,
+          "description": "Double-clicking on main.js file in explorer to open it",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 23.5,
+          "description": "main.js file opens in editor, showing 150 lines of JavaScript code",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 27.2,
+          "description": "Scrolling down to line 75 where there's a function definition",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 31.6,
+          "description": "Clicking at the end of line 78 to position cursor for editing",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 34.9,
+          "description": "Typing new code: 'console.log(\"Debug: user data\", userData);'",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 42.3,
+          "description": "Pressing Cmd+S to save the file, file indicator shows saved",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 45.7,
+          "description": "Opening integrated terminal by pressing Ctrl+` (backtick)",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 49.1,
+          "description": "Terminal panel opens at bottom, showing command prompt",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 52.8,
+          "description": "Typing 'npm run dev' command to start development server",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 56.4,
+          "description": "Pressing Enter to execute the command, server starting up",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 61.2,
+          "description": "Development server starts, showing 'Server running on localhost:3000'",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 65.8,
+          "description": "Switching to Chrome browser to test the application",
+          "application": "Chrome"
+        },
+        {
+          "timestamp": 69.3,
+          "description": "Typing 'localhost:3000' in address bar to access local server",
+          "application": "Chrome"
+        },
+        {
+          "timestamp": 73.7,
+          "description": "Web application loads in browser, displaying the homepage",
+          "application": "Chrome",
+          "window_title": "Web App - localhost:3000"
+        },
+        {
+          "timestamp": 78.4,
+          "description": "Clicking on 'Login' button to test authentication flow",
+          "application": "Chrome"
+        },
+        {
+          "timestamp": 82.9,
+          "description": "Login form appears, entering test credentials",
+          "application": "Chrome"
+        },
+        {
+          "timestamp": 89.5,
+          "description": "Submitting login form, page redirects to dashboard",
+          "application": "Chrome"
+        },
+        {
+          "timestamp": 94.2,
+          "description": "Opening Chrome DevTools by pressing F12 to check console",
+          "application": "Chrome"
+        },
+        {
+          "timestamp": 98.8,
+          "description": "Console tab shows the debug message we added: 'Debug: user data'",
+          "application": "Chrome"
+        },
+        {
+          "timestamp": 103.6,
+          "description": "Switching back to VS Code to continue development",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 107.3,
+          "description": "Opening styles.css file from file explorer to update styling",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 112.7,
+          "description": "Adding new CSS rule for button hover effects",
+          "application": "VS Code"
+        },
+        {
+          "timestamp": 118.4,
+          "description": "Saving CSS changes with Cmd+S, preparing to test updates",
+          "application": "VS Code"
+        }
+      ]
+    }
+  ]
+}
