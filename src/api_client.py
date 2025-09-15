@@ -68,12 +68,8 @@ class APIClient:
         user_input = self._build_user_input(system_prompt, user_prompt, frame_context)
 
         try:
-            if model_name.startswith('gpt-5'):
-                # Use GPT-5 Responses API with tools
-                return self._call_gpt5_with_tools(user_input, api_settings, start_time)
-            else:
-                # Use Chat Completions API for other models
-                return self._call_chat_completion(user_input, api_settings, start_time)
+            # Use standard Chat Completions API for all models
+            return self._call_chat_completion(user_input, api_settings, start_time)
 
         except Exception as error:
             logger.error(f"API call failed: {error}")
@@ -85,9 +81,9 @@ class APIClient:
         settings: Dict[str, Any],
         start_time: float
     ) -> Dict[str, Any]:
-        """Call GPT-5 Responses API with web search tools."""
+        """Call GPT-5 using standard Chat Completions API."""
 
-        # Define web search tool for research
+        # Define web search tool for research (simulated)
         tools = [
             {
                 "type": "function",
@@ -113,9 +109,9 @@ class APIClient:
             }
         ]
 
-        # Prepare GPT-5 payload
+        # Use standard Chat Completions format
         payload = {
-            "model": settings.get('model_name', 'gpt-5'),
+            "model": settings.get('model_name', 'gpt-4'),  # Use gpt-4 for now
             "messages": [
                 {
                     "role": "user",
@@ -123,21 +119,17 @@ class APIClient:
                 }
             ],
             "tools": tools,
-            "tool_choice": "auto"  # Let GPT-5 decide when to use tools
+            "tool_choice": "auto"
         }
 
-        # Add reasoning settings for GPT-5
-        if 'reasoning_effort' in settings:
-            payload['reasoning'] = {'effort': settings['reasoning_effort']}
-
-        # Add other settings
+        # Add standard settings
         if settings.get('max_tokens'):
-            payload['max_completion_tokens'] = settings['max_tokens']
+            payload['max_tokens'] = settings['max_tokens']
         if settings.get('temperature') is not None:
             payload['temperature'] = settings['temperature']
 
         response = self._make_api_call_with_retry(payload, use_tools=True)
-        return self._parse_gpt5_response(response, start_time, settings)
+        return self._parse_chat_response(response, start_time, settings)
 
     def _call_chat_completion(
         self,
@@ -177,10 +169,7 @@ class APIClient:
             try:
                 logger.info(f"API call attempt {attempt} (model: {payload.get('model', 'unknown')})")
 
-                if use_tools:
-                    response = self.client.chat.completions.create(**payload)
-                else:
-                    response = self.client.chat.completions.create(**payload)
+                response = self.client.chat.completions.create(**payload)
 
                 return response.model_dump()
 
