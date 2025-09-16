@@ -413,8 +413,13 @@ def render_processing_interface():
             total_windows = len(getattr(st.session_state, 'processing_windows', []))
 
             if current_idx < total_windows:
-                if st.button(f"🚀 Process Next Window ({current_idx + 1}/{total_windows})", type="primary"):
-                    process_next_window()
+                col2a, col2b = st.columns(2)
+                with col2a:
+                    if st.button(f"🚀 Next ({current_idx + 1}/{total_windows})", type="primary"):
+                        process_next_window()
+                with col2b:
+                    if st.button(f"⚡ All Remaining ({total_windows - current_idx})", type="secondary"):
+                        process_all_remaining_windows()
             else:
                 st.success("✅ All windows processed!")
 
@@ -609,6 +614,141 @@ def process_next_window():
             status=WindowStatus.FAILED,
             error_message=str(e)
         )
+
+
+def process_all_remaining_windows():
+    """Process all remaining windows in one go with progress updates."""
+    if not st.session_state.processing_active or not hasattr(st.session_state, 'processing_windows'):
+        st.error("No active processing session")
+        return
+
+    windows = st.session_state.processing_windows
+    current_index = st.session_state.current_window_index
+    session_id = st.session_state.current_session_id
+    total_windows = len(windows)
+    remaining_windows = total_windows - current_index
+
+    if current_index >= total_windows:
+        st.success("🎉 All windows already processed!")
+        return
+
+    # Initialize progress tracking
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+
+    try:
+        # Get session details
+        session = st.session_state.db_manager.get_session(session_id)
+
+        # Initialize processors once
+        window_processor = EnhancedWindowProcessor()
+        context_manager = ContextManager(st.session_state.db_manager)
+
+        # Check API key
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            st.error("❌ OpenAI API Key not configured")
+            return
+
+        gpt5_client = GPT5Client(api_key)
+
+        # Process remaining windows
+        for i in range(current_index, total_windows):
+            if not st.session_state.processing_active:
+                st.warning("⏸️ Processing stopped by user")
+                break
+
+            window = windows[i]
+            window_number = i + 1
+            progress = (i - current_index + 1) / remaining_windows
+
+            # Update progress
+            progress_bar.progress(progress)
+            status_text.text(f"🤖 Processing window {window_number}/{total_windows}...")
+
+            try:
+                # Create window in database
+                window_id = f"{session_id}_window_{window_number}"
+                st.session_state.db_manager.create_window(
+                    window_id=window_id,
+                    session_id=session_id,
+                    window_number=window_number,
+                    start_time=window.start_time,
+                    end_time=window.end_time,
+                    input_data=window.to_dict()
+                )
+
+                # Build context for this window
+                context_prompt = context_manager.build_context_for_window(
+                    session_id, window_number, window
+                )
+
+                # Analyze with GPT-5 (synchronously)
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+                try:
+                    result = loop.run_until_complete(gpt5_client.analyze_window_with_context(
+                        system_prompt=session['processing_config'].system_prompt,
+                        context_prompt=context_prompt,
+                        window_data=window.to_dict(),
+                        config=session['gpt_config']
+                    ))
+
+                    # Save results
+                    st.session_state.db_manager.update_window_status(
+                        window_id=window_id,
+                        status=WindowStatus.COMPLETED,
+                        output_data=result.to_dict(),
+                        processing_time=result.processing_time_seconds
+                    )
+
+                    # Save context and recommendations
+                    context_manager.save_window_context(
+                        session_id=session_id,
+                        window_number=window_number,
+                        window_context=window_processor.extract_window_context(window),
+                        analysis_result=result.content
+                    )
+
+                finally:
+                    loop.close()
+
+                # Update session progress
+                st.session_state.db_manager.update_session_status(
+                    session_id, SessionStatus.PROCESSING, completed_windows=window_number
+                )
+
+            except Exception as e:
+                st.error(f"❌ Error processing window {window_number}: {e}")
+                st.session_state.db_manager.update_window_status(
+                    window_id=f"{session_id}_window_{window_number}",
+                    status=WindowStatus.FAILED,
+                    error_message=str(e)
+                )
+                continue
+
+            # Update current index
+            st.session_state.current_window_index = i + 1
+
+        # Mark session as completed if all windows done
+        if st.session_state.current_window_index >= total_windows:
+            st.session_state.processing_active = False
+            st.session_state.db_manager.update_session_status(
+                session_id, SessionStatus.COMPLETED, completed_windows=total_windows
+            )
+            progress_bar.progress(1.0)
+            status_text.text("✅ All windows processed successfully!")
+            st.success(f"🎉 Processed {remaining_windows} windows successfully!")
+        else:
+            completed = st.session_state.current_window_index - current_index
+            status_text.text(f"⏸️ Processed {completed}/{remaining_windows} windows before stopping")
+
+        st.rerun()
+
+    except Exception as e:
+        st.error(f"❌ Error in batch processing: {e}")
 
 
 def pause_processing():

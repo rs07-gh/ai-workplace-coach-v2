@@ -256,12 +256,7 @@ Structure your response with clear recommendations, implementation steps, and su
             "timeout": 300  # 5 minute timeout
         }
 
-        # Add optional parameters
-        if config.temperature > 0:
-            request_params["temperature"] = config.temperature
-
-        if config.max_tokens:
-            request_params["max_tokens"] = config.max_tokens
+        # Note: GPT-5 uses reasoning_effort and verbosity instead of temperature/max_tokens
 
         if progress_callback:
             progress_callback("Sending request to GPT-5 Responses API...")
