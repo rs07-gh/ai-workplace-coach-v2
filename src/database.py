@@ -29,25 +29,17 @@ class WindowStatus(Enum):
 
 @dataclass
 class GPTConfig:
-    model: str = "gpt-5"
+    model: str = "gpt-5"  # Changed default from gpt-5-mini to gpt-5
     reasoning_effort: str = "medium"
     verbosity: str = "medium"
-    temperature: float = 0.0
-    max_tokens: Optional[int] = None
-    top_p: float = 1.0
-    frequency_penalty: float = 0.0
-    presence_penalty: float = 0.0
+    # Note: GPT-5 models don't use temperature, top_p, or penalty parameters
+    # These are managed through reasoning_effort and verbosity instead
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "model": self.model,
             "reasoning_effort": self.reasoning_effort,
             "verbosity": self.verbosity,
-            "temperature": self.temperature,
-            "max_tokens": self.max_tokens,
-            "top_p": self.top_p,
-            "frequency_penalty": self.frequency_penalty,
-            "presence_penalty": self.presence_penalty,
         }
 
     @classmethod
@@ -56,11 +48,6 @@ class GPTConfig:
             model=data.get("model", "gpt-5"),
             reasoning_effort=data.get("reasoning_effort", "medium"),
             verbosity=data.get("verbosity", "medium"),
-            temperature=data.get("temperature", 0.0),
-            max_tokens=data.get("max_tokens"),
-            top_p=data.get("top_p", 1.0),
-            frequency_penalty=data.get("frequency_penalty", 0.0),
-            presence_penalty=data.get("presence_penalty", 0.0),
         )
 
 

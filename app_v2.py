@@ -133,18 +133,14 @@ def render_sidebar_config():
 
         # API Configuration
         with st.expander("🔑 API Settings", expanded=True):
-            api_key = st.text_input(
-                "OpenAI API Key",
-                type="password",
-                value=os.environ.get("OPENAI_API_KEY", ""),
-                help="Required for GPT-5 analysis"
-            )
-
-            if api_key:
+            # API key is now handled securely via Streamlit secrets (backend-only)
+            try:
+                api_key = st.secrets["OPENAI_API_KEY"]
                 os.environ["OPENAI_API_KEY"] = api_key
-                st.success("✅ API Key configured")
-            else:
-                st.warning("⚠️ API Key required")
+                st.success("🔑 API Key configured securely via backend secrets")
+            except KeyError:
+                st.error("🔑 API Key not found in secrets. Please contact administrator.")
+                st.info("💡 API keys are now managed securely on the backend for security.")
 
         # Processing Configuration
         with st.expander("🛠️ Processing Settings"):
@@ -173,7 +169,7 @@ def render_sidebar_config():
             model = st.selectbox(
                 "Model",
                 options=["gpt-5", "gpt-5-mini", "gpt-5-nano"],
-                index=1,  # Default to gpt-5-mini
+                index=0,  # Default to gpt-5
                 help="Choose GPT-5 model variant"
             )
 
@@ -191,14 +187,8 @@ def render_sidebar_config():
                 help="Controls response length"
             )
 
-            temperature = st.slider(
-                "Temperature",
-                min_value=0.0,
-                max_value=1.0,
-                value=0.0,
-                step=0.1,
-                help="Controls response creativity"
-            )
+            # Note: GPT-5 doesn't use temperature parameter
+            st.info("💡 GPT-5 models use reasoning effort instead of temperature")
 
         return {
             'api_key': api_key,
@@ -210,8 +200,8 @@ def render_sidebar_config():
             'gpt_config': GPTConfig(
                 model=model,
                 reasoning_effort=reasoning_effort,
-                verbosity=verbosity,
-                temperature=temperature
+                verbosity=verbosity
+                # Note: temperature removed - GPT-5 doesn't use this parameter
             )
         }
 
@@ -457,8 +447,12 @@ def start_processing():
         SessionStatus.PROCESSING
     )
 
-    # Start processing in background
-    asyncio.create_task(process_session_async())
+    # Start processing using threading instead of asyncio for Streamlit compatibility
+    import threading
+    processing_thread = threading.Thread(target=process_session_sync)
+    processing_thread.daemon = True
+    processing_thread.start()
+
     st.success("🚀 Processing started!")
     st.rerun()
 
@@ -594,6 +588,20 @@ async def process_session_async():
     except Exception as e:
         st.error(f"❌ Error in session processing: {e}")
         st.session_state.processing_active = False
+
+
+def process_session_sync():
+    """Process the session synchronously for Streamlit compatibility."""
+    import asyncio
+
+    # Create new event loop for this thread
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(process_session_async())
+    finally:
+        loop.close()
 
 
 def render_processing_progress():
