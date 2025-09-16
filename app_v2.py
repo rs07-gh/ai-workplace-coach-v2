@@ -402,13 +402,21 @@ def render_processing_interface():
 
     with col1:
         if session['status'] in ['created', 'paused']:
-            if st.button("▶️ Start Processing", type="primary"):
+            if st.button("▶️ Setup Processing", type="primary"):
                 start_processing()
 
     with col2:
-        if session['status'] == 'processing':
-            if st.button("⏸️ Pause Processing"):
-                pause_processing()
+        if (session['status'] == 'processing' and
+            hasattr(st.session_state, 'processing_windows') and
+            st.session_state.processing_active):
+            current_idx = getattr(st.session_state, 'current_window_index', 0)
+            total_windows = len(getattr(st.session_state, 'processing_windows', []))
+
+            if current_idx < total_windows:
+                if st.button(f"🚀 Process Next Window ({current_idx + 1}/{total_windows})", type="primary"):
+                    process_next_window()
+            else:
+                st.success("✅ All windows processed!")
 
     with col3:
         if session['status'] in ['processing', 'paused']:
@@ -437,24 +445,170 @@ def render_processing_interface():
 
 
 def start_processing():
-    """Start processing the current session."""
+    """Initialize processing setup for the current session."""
     if not st.session_state.current_session_id:
         return
 
-    st.session_state.processing_active = True
-    st.session_state.db_manager.update_session_status(
-        st.session_state.current_session_id,
-        SessionStatus.PROCESSING
-    )
+    session_id = st.session_state.current_session_id
+    session = st.session_state.db_manager.get_session(session_id)
 
-    # Start processing using threading instead of asyncio for Streamlit compatibility
-    import threading
-    processing_thread = threading.Thread(target=process_session_sync)
-    processing_thread.daemon = True
-    processing_thread.start()
+    if not session:
+        st.error("Session not found")
+        return
 
-    st.success("🚀 Processing started!")
-    st.rerun()
+    try:
+        # Initialize processors and load windows
+        window_processor = EnhancedWindowProcessor(
+            window_seconds=session['processing_config'].window_seconds
+        )
+
+        # Load frame descriptions and create windows
+        frame_descriptions, metadata = window_processor.load_frame_descriptions_from_json(
+            session['input_file_path']
+        )
+        windows = window_processor.create_windows_from_frames(frame_descriptions)
+
+        # Store windows in session state for step-by-step processing
+        st.session_state.processing_windows = windows
+        st.session_state.current_window_index = 0
+        st.session_state.processing_active = True
+
+        # Update session status
+        st.session_state.db_manager.update_session_status(
+            session_id, SessionStatus.PROCESSING, completed_windows=0
+        )
+
+        # Initialize progress tracking
+        st.session_state.processing_progress = {
+            'current': 0,
+            'total': len(windows),
+            'status': f'Ready to process {len(windows)} windows'
+        }
+
+        st.success(f"🚀 Ready to process {len(windows)} windows!")
+        st.info("👆 Click 'Process Next Window' to start processing one window at a time")
+        st.rerun()
+
+    except Exception as e:
+        st.error(f"❌ Error setting up processing: {e}")
+        st.session_state.processing_active = False
+
+
+def process_next_window():
+    """Process the next window in the queue."""
+    if not st.session_state.processing_active or not hasattr(st.session_state, 'processing_windows'):
+        st.error("No active processing session")
+        return
+
+    windows = st.session_state.processing_windows
+    current_index = st.session_state.current_window_index
+    session_id = st.session_state.current_session_id
+
+    if current_index >= len(windows):
+        # All windows processed
+        st.session_state.processing_active = False
+        st.session_state.db_manager.update_session_status(
+            session_id, SessionStatus.COMPLETED, completed_windows=len(windows)
+        )
+        st.success("🎉 All windows processed successfully!")
+        st.rerun()
+        return
+
+    # Get current window to process
+    window = windows[current_index]
+    window_number = current_index + 1
+
+    try:
+        # Get session details
+        session = st.session_state.db_manager.get_session(session_id)
+
+        # Initialize processors
+        window_processor = EnhancedWindowProcessor()
+        context_manager = ContextManager(st.session_state.db_manager)
+
+        # Check API key
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            st.error("❌ OpenAI API Key not configured")
+            return
+
+        gpt5_client = GPT5Client(api_key)
+
+        # Update progress
+        st.session_state.processing_progress = {
+            'current': window_number,
+            'total': len(windows),
+            'status': f'Processing window {window_number}/{len(windows)}'
+        }
+
+        # Create window in database
+        window_id = f"{session_id}_window_{window_number}"
+        st.session_state.db_manager.create_window(
+            window_id=window_id,
+            session_id=session_id,
+            window_number=window_number,
+            start_time=window.start_time,
+            end_time=window.end_time,
+            input_data=window.to_dict()
+        )
+
+        # Build context for this window
+        context_prompt = context_manager.build_context_for_window(
+            session_id, window_number, window
+        )
+
+        with st.spinner(f"🤖 Analyzing window {window_number}/{len(windows)} with GPT-5..."):
+            # Analyze with GPT-5 (synchronously - no async needed)
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            try:
+                result = loop.run_until_complete(gpt5_client.analyze_window_with_context(
+                    system_prompt=session['processing_config'].system_prompt,
+                    context_prompt=context_prompt,
+                    window_data=window.to_dict(),
+                    config=session['gpt_config']
+                ))
+
+                # Save results
+                st.session_state.db_manager.update_window_status(
+                    window_id=window_id,
+                    status=WindowStatus.COMPLETED,
+                    output_data=result.to_dict(),
+                    processing_time=result.processing_time_seconds
+                )
+
+                # Save context and recommendations
+                context_manager.save_window_context(
+                    session_id=session_id,
+                    window_number=window_number,
+                    window_context=window_processor.extract_window_context(window),
+                    analysis_result=result.content
+                )
+
+                st.success(f"✅ Window {window_number} processed successfully!")
+
+            finally:
+                loop.close()
+
+        # Move to next window
+        st.session_state.current_window_index = current_index + 1
+
+        # Update session progress
+        st.session_state.db_manager.update_session_status(
+            session_id, SessionStatus.PROCESSING, completed_windows=window_number
+        )
+
+        st.rerun()
+
+    except Exception as e:
+        st.error(f"❌ Error processing window {window_number}: {e}")
+        st.session_state.db_manager.update_window_status(
+            window_id=window_id,
+            status=WindowStatus.FAILED,
+            error_message=str(e)
+        )
 
 
 def pause_processing():
@@ -479,129 +633,8 @@ def stop_processing():
     st.rerun()
 
 
-async def process_session_async():
-    """Process the session asynchronously."""
-    try:
-        session_id = st.session_state.current_session_id
-        session = st.session_state.db_manager.get_session(session_id)
-
-        if not session:
-            return
-
-        # Initialize processors
-        window_processor = EnhancedWindowProcessor(
-            window_seconds=session['processing_config'].window_seconds
-        )
-        context_manager = ContextManager(st.session_state.db_manager)
-
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            st.error("❌ OpenAI API Key not configured")
-            return
-
-        gpt5_client = GPT5Client(api_key)
-
-        # Load and process windows
-        frame_descriptions, metadata = window_processor.load_frame_descriptions_from_json(
-            session['input_file_path']
-        )
-        windows = window_processor.create_windows_from_frames(frame_descriptions)
-
-        # Update session with total windows
-        st.session_state.db_manager.update_session_status(
-            session_id, SessionStatus.PROCESSING, completed_windows=0
-        )
-
-        # Process each window
-        for i, window in enumerate(windows, 1):
-            if not st.session_state.processing_active:
-                break
-
-            # Update progress
-            st.session_state.processing_progress = {
-                'current': i,
-                'total': len(windows),
-                'status': f'Processing window {i}/{len(windows)}'
-            }
-
-            # Create window in database
-            window_id = f"{session_id}_window_{i}"
-            st.session_state.db_manager.create_window(
-                window_id=window_id,
-                session_id=session_id,
-                window_number=i,
-                start_time=window.start_time,
-                end_time=window.end_time,
-                input_data=window.to_dict()
-            )
-
-            # Build context for this window
-            context_prompt = context_manager.build_context_for_window(
-                session_id, i, window
-            )
-
-            # Analyze with GPT-5
-            try:
-                result = await gpt5_client.analyze_window_with_context(
-                    system_prompt=session['processing_config'].system_prompt,
-                    context_prompt=context_prompt,
-                    window_data=window.to_dict(),
-                    config=session['gpt_config']
-                )
-
-                # Save results
-                st.session_state.db_manager.update_window_status(
-                    window_id=window_id,
-                    status=WindowStatus.COMPLETED,
-                    output_data=result.to_dict(),
-                    processing_time=result.processing_time_seconds
-                )
-
-                # Save context and recommendations
-                context_manager.save_window_context(
-                    session_id=session_id,
-                    window_number=i,
-                    window_context=window_processor.extract_window_context(window),
-                    analysis_result=result.content
-                )
-
-                # Update session progress
-                st.session_state.db_manager.update_session_status(
-                    session_id, SessionStatus.PROCESSING, completed_windows=i
-                )
-
-            except Exception as e:
-                st.error(f"❌ Error processing window {i}: {e}")
-                st.session_state.db_manager.update_window_status(
-                    window_id=window_id,
-                    status=WindowStatus.FAILED,
-                    error_message=str(e)
-                )
-
-        # Mark session as completed
-        if st.session_state.processing_active:
-            st.session_state.db_manager.update_session_status(
-                session_id, SessionStatus.COMPLETED, completed_windows=len(windows)
-            )
-            st.session_state.processing_active = False
-
-    except Exception as e:
-        st.error(f"❌ Error in session processing: {e}")
-        st.session_state.processing_active = False
-
-
-def process_session_sync():
-    """Process the session synchronously for Streamlit compatibility."""
-    import asyncio
-
-    # Create new event loop for this thread
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(process_session_async())
-    finally:
-        loop.close()
+# Note: Removed problematic async/threading functions that caused Streamlit Cloud issues
+# Processing is now handled by process_next_window() function with step-by-step approach
 
 
 def render_processing_progress():
