@@ -48,7 +48,7 @@ class GPT5Client:
         self.default_tools = self._setup_default_tools()
 
     def _setup_default_tools(self) -> List[Dict[str, Any]]:
-        """Setup default tools including web search for GPT-5."""
+        """Setup default tools using Chat Completions API format."""
         return [
             {
                 "type": "function",
@@ -141,8 +141,8 @@ class GPT5Client:
             progress_callback(f"Starting analysis with GPT-5 {config.model}")
 
         try:
-            # Use Responses API for enhanced agentic flows
-            result = await self._call_responses_api(
+            # Use Chat Completions API for GPT-5
+            result = await self._call_chat_completions_api(
                 system_prompt=system_prompt,
                 user_input=user_input,
                 config=config,
@@ -215,55 +215,39 @@ Structure your response with clear recommendations, implementation steps, and su
 
         return "\n".join(input_sections)
 
-    async def _call_responses_api(
+    async def _call_chat_completions_api(
         self,
         system_prompt: str,
         user_input: str,
         config: GPTConfig,
         progress_callback: Optional[Callable[[str], None]] = None
     ) -> Dict[str, Any]:
-        """Call GPT-5 using the Responses API."""
+        """Call GPT-5 using the Chat Completions API."""
 
-        # Build input blocks for Responses API
-        input_blocks = [
-            {
-                "role": "system",
-                "content": [
-                    {"type": "input_text", "text": system_prompt}
-                ]
-            },
-            {
-                "role": "user",
-                "content": [
-                    {"type": "input_text", "text": user_input}
-                ]
-            }
+        # Build messages for Chat Completions API
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_input}
         ]
 
-        # Build request parameters
+        # Build request parameters for Chat Completions
         request_params = {
             "model": config.model,
-            "input": input_blocks,
-            "text": {
-                "format": {"type": "text"},
-                "verbosity": config.verbosity
-            },
-            "reasoning": {
-                "effort": config.reasoning_effort,
-                "summary": "auto"
-            },
-            "tools": self.default_tools,
-            "timeout": 300  # 5 minute timeout
+            "messages": messages,
+            "max_tokens": 2000,  # Reasonable default for coaching analysis
         }
 
-        # Note: GPT-5 uses reasoning_effort and verbosity instead of temperature/max_tokens
+        # Add tools if enabled (use correct Chat Completions format)
+        if hasattr(self, 'default_tools') and self.default_tools:
+            request_params["tools"] = self.default_tools
+            request_params["tool_choice"] = "auto"
 
         if progress_callback:
-            progress_callback("Sending request to GPT-5 Responses API...")
+            progress_callback("Sending request to GPT-5 Chat Completions API...")
 
-        # Make the API call
+        # Make the API call using Chat Completions
         response = await asyncio.to_thread(
-            self.client.responses.create,
+            self.client.chat.completions.create,
             **request_params
         )
 
@@ -274,9 +258,7 @@ Structure your response with clear recommendations, implementation steps, and su
         content = ""
         usage = None
 
-        if hasattr(response, 'output_text'):
-            content = response.output_text
-        elif hasattr(response, 'choices') and response.choices:
+        if hasattr(response, 'choices') and response.choices:
             content = response.choices[0].message.content
         else:
             content = str(response)
