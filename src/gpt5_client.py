@@ -230,20 +230,41 @@ Structure your response with clear recommendations, implementation steps, and su
             {"role": "user", "content": user_input}
         ]
 
-        # Build request parameters for Chat Completions
+        # Build request parameters for GPT-5 Chat Completions
         request_params = {
             "model": config.model,
             "messages": messages,
-            "max_tokens": 2000,  # Reasonable default for coaching analysis
+            "max_completion_tokens": 2000,  # GPT-5 uses max_completion_tokens instead of max_tokens
         }
 
-        # Add tools if enabled (use correct Chat Completions format)
-        if hasattr(self, 'default_tools') and self.default_tools:
-            request_params["tools"] = self.default_tools
-            request_params["tool_choice"] = "auto"
+        # Add GPT-5 specific parameters
+        if config.model.startswith('gpt-5'):
+            # reasoning_effort: minimal, low, medium (default), high
+            if hasattr(config, 'reasoning_effort') and config.reasoning_effort:
+                request_params["reasoning_effort"] = config.reasoning_effort
+
+            # verbosity: low, medium (default), high - direct API parameter for GPT-5
+            if hasattr(config, 'verbosity') and config.verbosity:
+                request_params["verbosity"] = config.verbosity
+
+                # Adjust max_completion_tokens based on verbosity for better responses
+                verbosity_tokens = {
+                    'low': 1000,
+                    'medium': 2000,
+                    'high': 4000
+                }
+                request_params["max_completion_tokens"] = verbosity_tokens.get(config.verbosity, 2000)
+
+        # Add tools if enabled (temporarily disabled to test basic functionality)
+        # if hasattr(self, 'default_tools') and self.default_tools:
+        #     request_params["tools"] = self.default_tools
+        #     request_params["tool_choice"] = "auto"
 
         if progress_callback:
             progress_callback("Sending request to GPT-5 Chat Completions API...")
+
+        # Debug: Log the request parameters
+        logger.info(f"GPT-5 API request params: {json.dumps({k: v if k != 'messages' else f'[{len(v)} messages]' for k, v in request_params.items()}, indent=2)}")
 
         # Make the API call using Chat Completions
         response = await asyncio.to_thread(
@@ -367,7 +388,7 @@ Structure your response with clear recommendations, implementation steps, and su
             test_prompt = "This is a test prompt to validate GPT-5 configuration."
 
             start_time = time.time()
-            result = await self._call_responses_api(
+            result = await self._call_chat_completions_api(
                 system_prompt="You are a test assistant. Respond with 'Configuration test successful' and nothing else.",
                 user_input=test_prompt,
                 config=config
