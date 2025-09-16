@@ -187,39 +187,42 @@ class APIClient:
         processing_time = int((time.time() - start_time) * 1000)
 
         # GPT-5 Responses API has different structure than Chat Completions
-        # Extract content directly from response
+        # Extract content with robust handling
         content = response.get('content', '') or ''
-        if isinstance(content, dict):
-            # Handle case where content is a dict object
-            content = str(content)
+        content = self._ensure_string(content)
 
         tool_calls = response.get('tool_calls', [])
+        if not isinstance(tool_calls, list):
+            tool_calls = []
 
         # Handle tool calls (web searches)
         search_results = []
         if tool_calls:
             for tool_call in tool_calls:
-                if tool_call.get('function', {}).get('name') == 'web_search':
-                    # In a real implementation, you would execute the web search
-                    # For now, we'll simulate it
-                    args = json.loads(tool_call.get('function', {}).get('arguments', '{}'))
-                    search_results.append({
-                        'query': args.get('query', ''),
-                        'focus': args.get('focus', 'general'),
-                        'simulated': True
-                    })
+                try:
+                    if tool_call.get('function', {}).get('name') == 'web_search':
+                        # In a real implementation, you would execute the web search
+                        # For now, we'll simulate it
+                        args_str = tool_call.get('function', {}).get('arguments', '{}')
+                        args = json.loads(args_str) if isinstance(args_str, str) else {}
+                        search_results.append({
+                            'query': args.get('query', ''),
+                            'focus': args.get('focus', 'general'),
+                            'simulated': True
+                        })
+                except (json.JSONDecodeError, KeyError, TypeError):
+                    # Skip malformed tool calls
+                    continue
 
         # Extract usage information
         usage = response.get('usage', {})
-        tokens_used = usage.get('total_tokens', 0)
+        tokens_used = usage.get('total_tokens', 0) if isinstance(usage, dict) else 0
 
-        # Extract reasoning if available (GPT-5 Responses API format)
+        # Extract reasoning with robust handling
         reasoning = response.get('reasoning', '') or ''
-        if isinstance(reasoning, dict):
-            # If reasoning is a dict, extract the text content
-            reasoning = reasoning.get('content', '') or str(reasoning)
+        reasoning = self._ensure_string(reasoning)
 
-        # Parse recommendations
+        # Parse recommendations and confidence with safe string handling
         recommendations = self._extract_recommendations(content)
         confidence = self._extract_confidence(reasoning or content)
 
@@ -290,29 +293,58 @@ class APIClient:
 
 Please analyze this context and provide specific, actionable productivity recommendations following the guidelines above. Use web search tools proactively to research applications and validate optimization techniques."""
 
+    def _ensure_string(self, value: Any) -> str:
+        """Safely convert any value to string for processing."""
+        if isinstance(value, str):
+            return value
+        elif isinstance(value, dict):
+            # Try to extract text content from dict
+            if 'content' in value:
+                return str(value['content'])
+            elif 'text' in value:
+                return str(value['text'])
+            else:
+                return str(value)
+        elif value is None:
+            return ''
+        else:
+            return str(value)
+
     def _extract_recommendations(self, content: str) -> List[str]:
         """Extract individual recommendations from response content."""
 
         if not content:
             return []
 
+        # Ensure content is a string
+        content_str = self._ensure_string(content)
+
+        if not content_str:
+            return []
+
         recommendations = []
-        lines = content.split('\n')
+        lines = content_str.split('\n')
 
         for line in lines:
             line = line.strip()
+            if not line:
+                continue
+
+            # Safely convert line to lowercase
+            line_lower = self._ensure_string(line).lower()
+
             # Look for numbered lists, bullet points, or explicit recommendations
             if any([
                 line.startswith(tuple(f'{i}.' for i in range(1, 11))),
                 line.startswith(('•', '-', '*')),
                 line.startswith('[') and ']:' in line,
-                'recommendation' in line.lower() and ':' in line
+                'recommendation' in line_lower and ':' in line
             ]):
                 recommendations.append(line)
 
         # If no structured recommendations found, use paragraphs
-        if not recommendations and content:
-            paragraphs = content.split('\n\n')
+        if not recommendations and content_str:
+            paragraphs = content_str.split('\n\n')
             for para in paragraphs:
                 para = para.strip()
                 if len(para) > 50:  # Substantial content
@@ -326,30 +358,40 @@ Please analyze this context and provide specific, actionable productivity recomm
         if not text:
             return 0.8
 
-        # Ensure text is a string
-        if isinstance(text, dict):
-            text = str(text)
-        elif not isinstance(text, str):
-            text = str(text)
+        # Safely convert to string
+        text_str = self._ensure_string(text)
+
+        if not text_str:
+            return 0.8
 
         import re
 
+        # Safely convert to lowercase
+        text_lower = text_str.lower()
+
         # Look for explicit confidence mentions
-        confidence_match = re.search(r'confidence[:\s]*([0-9]+(?:\.[0-9]+)?)', text.lower())
-        if confidence_match:
-            score = float(confidence_match.group(1))
-            return score if score <= 1.0 else score / 100.0
+        try:
+            confidence_match = re.search(r'confidence[:\s]*([0-9]+(?:\.[0-9]+)?)', text_lower)
+            if confidence_match:
+                score = float(confidence_match.group(1))
+                return score if score <= 1.0 else score / 100.0
+        except (ValueError, AttributeError):
+            # If regex fails, continue with word-based inference
+            pass
 
         # Infer from language
-        text_lower = text.lower()
-        if any(word in text_lower for word in ['highly confident', 'certain', 'definite']):
-            return 0.9
-        elif any(word in text_lower for word in ['confident', 'likely', 'probable']):
-            return 0.8
-        elif any(word in text_lower for word in ['possible', 'might', 'could']):
-            return 0.6
-        elif any(word in text_lower for word in ['uncertain', 'unsure', 'unclear']):
-            return 0.5
+        try:
+            if any(word in text_lower for word in ['highly confident', 'certain', 'definite']):
+                return 0.9
+            elif any(word in text_lower for word in ['confident', 'likely', 'probable']):
+                return 0.8
+            elif any(word in text_lower for word in ['possible', 'might', 'could']):
+                return 0.6
+            elif any(word in text_lower for word in ['uncertain', 'unsure', 'unclear']):
+                return 0.5
+        except AttributeError:
+            # If any string operation fails, return default
+            pass
 
         return 0.75  # Default confidence
 

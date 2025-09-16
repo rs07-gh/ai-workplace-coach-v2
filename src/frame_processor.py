@@ -418,7 +418,9 @@ class FrameProcessor:
         ]
 
         for frame in frames:
-            description = frame.description.lower()
+            # Safely handle description as string
+            description = str(frame.description) if frame.description else ''
+            description = description.lower()
             for pattern, activity in activity_patterns:
                 import re
                 if re.search(pattern, description):

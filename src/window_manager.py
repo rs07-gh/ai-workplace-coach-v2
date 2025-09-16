@@ -382,7 +382,9 @@ class WindowManager:
             for window in previous_windows + [current_window]:
                 for frame in window.frames:
                     if frame.description:
-                        all_descriptions.append(frame.description.lower())
+                        # Safely handle description as string
+                        description = str(frame.description) if frame.description else ''
+                        all_descriptions.append(description.lower())
 
             if not all_descriptions:
                 return None
